@@ -1,0 +1,7 @@
+-- Wildlore user-data schema (run in Supabase SQL editor). Catalog streams live from GBIF/OBIS.
+create table if not exists profiles (id uuid primary key references auth.users on delete cascade, display_name text, level int default 1, xp int default 0, discovery_score int default 0, naturalist_rank text default 'Novice Naturalist', created_at timestamptz default now());
+create table if not exists discoveries (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users on delete cascade, taxon_key bigint not null, scientific_name text, photo_url text, captured_at timestamptz default now(), lat double precision, lng double precision, ai_confidence real, encounter_type text default 'wild', journal_note text, is_first_encounter boolean default false);
+create table if not exists achievements (user_id uuid not null references auth.users on delete cascade, achievement_id text not null, completed_at timestamptz, primary key (user_id, achievement_id));
+alter table profiles enable row level security; alter table discoveries enable row level security; alter table achievements enable row level security;
+do $$ declare t text; begin foreach t in array array['discoveries','achievements'] loop execute format('drop policy if exists own on %I;', t); execute format('create policy own on %I for all using (user_id = auth.uid()) with check (user_id = auth.uid());', t); end loop; end $$;
+drop policy if exists own_p on profiles; create policy own_p on profiles for all using (id = auth.uid()) with check (id = auth.uid());
